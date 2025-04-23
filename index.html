@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>AR-лінійка</title>
+  <title>AR-рулетка (фронтальна камера)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   <script src="https://cdn.rawgit.com/jeromeetienne/ar.js/2.1.8/aframe/build/aframe-ar.min.js"></script>
@@ -12,20 +12,58 @@
 </head>
 <body>
 
-<a-scene embedded arjs>
-  <!-- Маркер Hiro -->
-  <a-marker preset="hiro">
-    <!-- Віртуальна лінійка -->
-    <a-box position="0 0.05 0" depth="0.01" height="0.01" width="0.5" color="#4CAF50"></a-box>
-    <a-text value="50 см" position="0.25 0.1 0" rotation="-90 0 0" align="center" color="white" scale="1 1 1"></a-text>
+<a-scene embedded arjs="sourceType: webcam; facingMode: user; debugUIEnabled: false;">
+  <a-assets>
+    <a-asset-item id="marker-model" src="https://cdn.aframe.io/test-models/models/box/box.gltf"></a-asset-item>
+  </a-assets>
+
+  <!-- Інтерактивні точки для вимірювання -->
+  <a-marker preset="hiro" id="marker">
+    <a-entity id="start-point" geometry="primitive: sphere; radius: 0.01" position="0 0 0" material="color: blue"></a-entity>
+    <a-entity id="end-point" geometry="primitive: sphere; radius: 0.01" position="0.5 0 0" material="color: red"></a-entity>
+    <a-entity id="line" line="start: 0 0 0; end: 0.5 0 0; color: yellow"></a-entity>
+    <a-text id="distance-label" value="0 см" position="0.25 0.05 0" align="center" color="white" scale="1 1 1"></a-text>
   </a-marker>
 
   <a-entity camera></a-entity>
 </a-scene>
 
+<script>
+  AFRAME.registerComponent('measure-distance', {
+    init: function () {
+      const start = document.querySelector('#start-point');
+      const end = document.querySelector('#end-point');
+      const line = document.querySelector('#line');
+      const label = document.querySelector('#distance-label');
+
+      this.el.sceneEl.addEventListener('markerFound', () => {
+        this.el.sceneEl.addEventListener('click', (evt) => {
+          const point = evt.detail.intersection.point;
+          start.object3D.position.copy(end.object3D.position);
+          end.object3D.position.copy(point);
+
+          line.setAttribute('line', {
+            start: `${start.object3D.position.x} ${start.object3D.position.y} ${start.object3D.position.z}`,
+            end: `${end.object3D.position.x} ${end.object3D.position.y} ${end.object3D.position.z}`,
+            color: 'yellow'
+          });
+
+          const dx = end.object3D.position.x - start.object3D.position.x;
+          const dy = end.object3D.position.y - start.object3D.position.y;
+          const dz = end.object3D.position.z - start.object3D.position.z;
+          const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          label.setAttribute('value', `${(dist * 100).toFixed(2)} см`);
+        });
+      });
+    }
+  });
+
+  document.querySelector('a-marker').setAttribute('measure-distance', '');
+</script>
+
 <!-- Пояснення -->
 <div style="position: fixed; bottom: 10px; left: 10px; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 8px; font-family: sans-serif; font-size: 14px;">
-  📏 Наведи камеру на маркер Hiro, щоб побачити віртуальну лінійку 50 см.<br>
+  📏 Наведи фронтальну камеру на маркер Hiro та натискай по екрану, щоб виміряти довжину. Нові натискання рухають лінію.<br>
   <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Завантажити маркер Hiro</a>
 </div>
 
